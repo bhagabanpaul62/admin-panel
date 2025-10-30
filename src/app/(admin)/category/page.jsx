@@ -34,6 +34,9 @@ export default function CategoryManagement() {
   const [iconFile, setIconFile] = useState(null);
   const [iconPreview, setIconPreview] = useState("");
   const [uploading, setUploading] = useState(false);
+  // Editing state
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
+  const [editingOriginalIcon, setEditingOriginalIcon] = useState("");
 
   // Attribute form state
   const [attributeForm, setAttributeForm] = useState({
@@ -65,6 +68,21 @@ export default function CategoryManagement() {
     fetchCategories();
   }, []);
 
+  // Toggle add/edit form. If closing, reset edit state and form
+  const handleToggleAddForm = () => {
+    if (showAddCategory) {
+      // closing
+      setShowAddCategory(false);
+      setEditingCategoryId(null);
+      setEditingOriginalIcon("");
+      setCategoryForm({ name: "", icon: "", order: 1, isActive: true, parentId: "" });
+      setIconFile(null);
+      setIconPreview("");
+    } else {
+      setShowAddCategory(true);
+    }
+  };
+
   // Handle icon file selection
   const handleIconFileChange = (e) => {
     const file = e.target.files[0];
@@ -92,7 +110,7 @@ export default function CategoryManagement() {
     }
   };
 
-  // Handle add category
+  // Handle add or update category
   const handleAddCategory = async (e) => {
     e.preventDefault();
     if (!categoryForm.name.trim()) {
@@ -102,35 +120,61 @@ export default function CategoryManagement() {
 
     try {
       setUploading(true);
-      let iconUrl = categoryForm.icon;
 
-      // Upload icon if file is selected
-      if (iconFile) {
-        iconUrl = await uploadCategoryIcon(iconFile, categoryForm.name);
+      // If editing an existing category
+      if (editingCategoryId) {
+        let iconUrl = categoryForm.icon;
+
+        // If a new file was selected, upload it and delete the old one
+        if (iconFile) {
+          // Upload new icon
+          iconUrl = await uploadCategoryIcon(iconFile, categoryForm.name);
+          // Delete previous icon from storage if it was a firebase URL
+          if (editingOriginalIcon) {
+            await deleteCategoryIcon(editingOriginalIcon);
+          }
+        }
+
+        await updateCategory(editingCategoryId, {
+          ...categoryForm,
+          icon: iconUrl,
+          order: parseInt(categoryForm.order),
+          parentId: categoryForm.parentId || null,
+        });
+
+        await fetchCategories();
+        // reset edit state
+        setEditingCategoryId(null);
+        setEditingOriginalIcon("");
+        setIconFile(null);
+        setIconPreview("");
+        setCategoryForm({ name: "", icon: "", order: 1, isActive: true, parentId: "" });
+        setShowAddCategory(false);
+        alert("Category updated successfully!");
+      } else {
+        // Create new category
+        let iconUrl = categoryForm.icon;
+        if (iconFile) {
+          iconUrl = await uploadCategoryIcon(iconFile, categoryForm.name);
+        }
+
+        await createCategory({
+          ...categoryForm,
+          icon: iconUrl,
+          order: parseInt(categoryForm.order),
+          parentId: categoryForm.parentId || null,
+        });
+
+        await fetchCategories();
+        setCategoryForm({ name: "", icon: "", order: 1, isActive: true, parentId: "" });
+        setIconFile(null);
+        setIconPreview("");
+        setShowAddCategory(false);
+        alert("Category added successfully!");
       }
-
-      await createCategory({
-        ...categoryForm,
-        icon: iconUrl,
-        order: parseInt(categoryForm.order),
-        parentId: categoryForm.parentId || null,
-      });
-
-      await fetchCategories();
-      setCategoryForm({
-        name: "",
-        icon: "",
-        order: 1,
-        isActive: true,
-        parentId: "",
-      });
-      setIconFile(null);
-      setIconPreview("");
-      setShowAddCategory(false);
-      alert("Category added successfully!");
     } catch (error) {
       console.error("Error:", error);
-      alert("Failed to add category");
+      alert("Failed to save category");
     } finally {
       setUploading(false);
     }
@@ -192,6 +236,27 @@ export default function CategoryManagement() {
       isActive: true,
     });
     setOptionInput("");
+  };
+
+  // Open edit category in the same form used for adding
+  const openEditCategory = (category) => {
+    setEditingCategoryId(category.id);
+    setEditingOriginalIcon(category.icon || "");
+    setCategoryForm({
+      name: category.name || "",
+      icon: category.icon || "",
+      order: category.order || 1,
+      isActive: category.isActive ?? true,
+      parentId: category.parentId || "",
+    });
+    // If icon is a URL, show preview
+    if (category.icon && String(category.icon).startsWith("http")) {
+      setIconPreview(category.icon);
+    } else {
+      setIconPreview("");
+    }
+    setIconFile(null);
+    setShowAddCategory(true);
   };
 
   // Add option to dropdown
@@ -279,10 +344,14 @@ export default function CategoryManagement() {
 
         {/* Add Category Button */}
         <button
-          onClick={() => setShowAddCategory(!showAddCategory)}
+          onClick={handleToggleAddForm}
           className="mb-6 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium"
         >
-          {showAddCategory ? "Cancel" : "+ Add New Category"}
+          {showAddCategory
+            ? editingCategoryId
+              ? "Cancel Edit"
+              : "Cancel"
+            : "+ Add New Category"}
         </button>
 
         {/* Add Category Form */}
@@ -437,7 +506,7 @@ export default function CategoryManagement() {
                     Uploading...
                   </>
                 ) : (
-                  "Create Category"
+                  (editingCategoryId ? "Update Category" : "Create Category")
                 )}
               </button>
             </form>
@@ -509,6 +578,12 @@ export default function CategoryManagement() {
                         </div>
 
                         <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => openEditCategory(category)}
+                            className="text-gray-800 hover:text-gray-900 px-3 py-1 text-sm border rounded"
+                          >
+                            Edit
+                          </button>
                           <button
                             onClick={() => handleDeleteCategory(category.id)}
                             className="text-red-600 hover:text-red-700 px-3 py-1 text-sm"
@@ -653,6 +728,12 @@ export default function CategoryManagement() {
 
                             <div className="flex items-center gap-2">
                               <button
+                                onClick={() => openEditCategory(childCategory)}
+                                className="text-gray-800 hover:text-gray-900 px-3 py-1 text-sm border rounded"
+                              >
+                                Edit
+                              </button>
+                              <button
                                 onClick={() =>
                                   handleDeleteCategory(childCategory.id)
                                 }
@@ -772,7 +853,7 @@ export default function CategoryManagement() {
                 </div>
                 <button
                   onClick={() => setShowAttributeModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-lg"
+                  className="p-2 text-red-600 font-bold hover:bg-gray-100 rounded-lg"
                 >
                   ✕
                 </button>

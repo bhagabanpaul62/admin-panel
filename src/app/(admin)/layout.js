@@ -19,7 +19,7 @@ function AdminContent({ children }) {
 
   return (
     <main
-      className={`transition-all duration-200 ease-in-out min-h-screen p-6 ${
+      className={`transition-all duration-200 ease-in-out min-h-screen  ${
         collapsed ? "ml-16" : "ml-48"
       }`}
     >
