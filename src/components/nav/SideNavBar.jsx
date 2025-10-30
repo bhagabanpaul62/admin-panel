@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -10,6 +10,7 @@ import {
   IoBarChartOutline,
 } from "react-icons/io5";
 import PropTypes from "prop-types";
+import { useSidebar } from "@/contexts/SidebarContext";
 
 const DEFAULT_MENU = [
   { name: "Home", link: "/", Icon: IoHomeOutline },
@@ -20,9 +21,7 @@ const DEFAULT_MENU = [
 
 function SideNavBar({ menu = DEFAULT_MENU }) {
   const pathname = usePathname() || "/";
-  const [collapsed, setCollapsed] = useState(false);
-
-  const toggle = () => setCollapsed((s) => !s);
+  const { collapsed, toggle } = useSidebar();
 
   return (
     <aside
@@ -41,7 +40,7 @@ function SideNavBar({ menu = DEFAULT_MENU }) {
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           aria-expanded={!collapsed}
           onClick={toggle}
-          className="p-1 rounded hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          className="p-1 rounded hover:bg-gray-700 focus:outline-none "
         >
           <IoReorderThreeSharp className="text-2xl" />
         </button>
@@ -78,7 +77,5 @@ function SideNavBar({ menu = DEFAULT_MENU }) {
     </aside>
   );
 }
-
-
 
 export default SideNavBar;
