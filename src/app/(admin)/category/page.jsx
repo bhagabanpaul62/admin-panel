@@ -1,5 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { onAuthChange, logoutUser } from "@/firebase/authService";
 import {
   getAllCategories,
   createCategory,
@@ -13,6 +15,7 @@ import {
 } from "@/firebase/categoryService";
 
 export default function CategoryManagement() {
+  const router = useRouter();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddCategory, setShowAddCategory] = useState(false);
@@ -64,9 +67,20 @@ export default function CategoryManagement() {
     }
   };
 
+  // Check authentication
   useEffect(() => {
-    fetchCategories();
-  }, []);
+    const unsubscribe = onAuthChange((user) => {
+      if (!user) {
+        // Not logged in, redirect to login
+        router.push("/login");
+      } else {
+        // User is logged in, fetch categories
+        fetchCategories();
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
 
   // Toggle add/edit form. If closing, reset edit state and form
   const handleToggleAddForm = () => {
@@ -75,7 +89,13 @@ export default function CategoryManagement() {
       setShowAddCategory(false);
       setEditingCategoryId(null);
       setEditingOriginalIcon("");
-      setCategoryForm({ name: "", icon: "", order: 1, isActive: true, parentId: "" });
+      setCategoryForm({
+        name: "",
+        icon: "",
+        order: 1,
+        isActive: true,
+        parentId: "",
+      });
       setIconFile(null);
       setIconPreview("");
     } else {
@@ -148,7 +168,13 @@ export default function CategoryManagement() {
         setEditingOriginalIcon("");
         setIconFile(null);
         setIconPreview("");
-        setCategoryForm({ name: "", icon: "", order: 1, isActive: true, parentId: "" });
+        setCategoryForm({
+          name: "",
+          icon: "",
+          order: 1,
+          isActive: true,
+          parentId: "",
+        });
         setShowAddCategory(false);
         alert("Category updated successfully!");
       } else {
@@ -166,7 +192,13 @@ export default function CategoryManagement() {
         });
 
         await fetchCategories();
-        setCategoryForm({ name: "", icon: "", order: 1, isActive: true, parentId: "" });
+        setCategoryForm({
+          name: "",
+          icon: "",
+          order: 1,
+          isActive: true,
+          parentId: "",
+        });
         setIconFile(null);
         setIconPreview("");
         setShowAddCategory(false);
@@ -329,17 +361,33 @@ export default function CategoryManagement() {
     }
   };
 
+  // Handle logout
+  const handleLogout = async () => {
+    if (confirm("Are you sure you want to logout?")) {
+      await logoutUser();
+      router.push("/login");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Category Management
-          </h1>
-          <p className="text-gray-600">
-            Manage categories and dynamic attributes for classified ads
-          </p>
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Category Management
+            </h1>
+            <p className="text-gray-600">
+              Manage categories and dynamic attributes for classified ads
+            </p>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-medium"
+          >
+            Logout
+          </button>
         </div>
 
         {/* Add Category Button */}
@@ -505,8 +553,10 @@ export default function CategoryManagement() {
                     </svg>
                     Uploading...
                   </>
+                ) : editingCategoryId ? (
+                  "Update Category"
                 ) : (
-                  (editingCategoryId ? "Update Category" : "Create Category")
+                  "Create Category"
                 )}
               </button>
             </form>
