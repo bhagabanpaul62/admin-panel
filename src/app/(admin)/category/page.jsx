@@ -480,10 +480,17 @@ export default function CategoryManagement() {
                   >
                     <option value="">None (Top Level)</option>
                     {categories
-                      .filter((cat) => !cat.parentId)
+                      .filter((cat) => {
+                        // Don't show categories that have parents (only show top-level)
+                        if (cat.parentId) return false;
+                        // Don't show the category being edited (prevent circular reference)
+                        if (editingCategoryId && cat.id === editingCategoryId)
+                          return false;
+                        return true;
+                      })
                       .map((cat) => (
                         <option key={cat.id} value={cat.id}>
-                          {cat.icon} {cat.name}
+                          {cat.name}
                         </option>
                       ))}
                   </select>
